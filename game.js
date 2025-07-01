@@ -30,6 +30,11 @@ function preload() {
     frameWidth: 30.2,
     frameHeight: 37
   });
+
+  this.load.spritesheet('harpoons', 'assets/harpoons.png', {
+    frameWidth: 30.2,
+    frameHeight: 37
+  });
 }
 
 function create() {
@@ -40,23 +45,19 @@ function create() {
   player.setBounce(0.2);
   player.setCollideWorldBounds(true);
 
-  bullets = this.physics.add.group({
-    classType: Phaser.Physics.Arcade.Sprite,
-    runChildUpdate: true
-  });
-
-  // timerEvent = this.time.addEvent({
-  //   delay: 10000, // 60 seconds
-  //   callback: endGame,
-  //   callbackScope: this,
-  // });
-
   timerText = this.add.text(config.width - 30, 20, '60', {
     fontSize: '32px Arial',
     fill: '#000'
   }).setOrigin(1, 0);
 
   shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+  this.anims.create({
+    key: 'harpoons_anim',
+    frames: this.anims.generateFrameNumbers('harpoons', { start: 1, end: 8 }),
+    frameRate: 10,
+    repeat: -1
+  });
 
   this.anims.create({
     key: 'right',
@@ -85,107 +86,51 @@ function create() {
     repeat: -1
   });
 
-  this.anims.create({
-    key: 'shoot',
-    frames: this.anims.generateFrameNumbers('player', { start: 67, end: 68 }),
-    frameRate: 10,
-    repeat: -1
-  });
-
-  this.anims.create({
-    key: 'bullet_anim',
-    frames: this.anims.generateFrameNumbers('player', { start: 67, end: 67 }),
-    frameRate: 12,
-    repeat: -1
-  });
-
   cursors = this.input.keyboard.createCursorKeys();
   spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-  lastFired = 0;
-  fireRate = 300;
 }
 
 
 function update() {
-  if (gameOver) return; // Stop updating if the game is over
+  if (gameOver) return;
 
-  // const timeLeft = Math.ceil((timerEvent.delay - timerEvent.getElapsed()) / 1000);
-  // timerText.setText(timeLeft);
-
-  // Update logic can go here
   if (cursors.left.isDown) {
-    // Move left
     player.setVelocityX(-250);
     player.anims.play('left', true);
   } else if (cursors.right.isDown) {
-    // Move right
     player.setVelocityX(250);
     player.anims.play('right', true);
   } else {
-    // Stop movement
     player.setVelocityX(0);
     player.anims.play('turn');
   }
 
   if (Phaser.Input.Keyboard.JustDown(spaceKey)) {
-    shootBullet(this);
+    shootHarpooon(this, player);
   }
 
 }
 
-function shootBullet(scene) {
-  const playerCenterX = player.x;
-  const playerTopY = player.y - player.displayHeight;
+function shootHarpooon(scene, player) {
+  if (gameOver) return;
 
-  // const bullet = bullets.get(playerCenterX, playerTopY, 'player', 67);
-  const distanceToTop = playerTopY;
+  const harpoon = scene.physics.add.sprite(player.x, player.y, 'harpoons', 0).setOrigin(0.5, 1).setScale(3);
+  harpoon.anims.play('harpoons_anim', true);
 
-  const hook = bullets.get(playerCenterX, playerTopY, 'player', 67);
+  harpoon.body.setAllowGravity(false);
+  harpoon.setVelocityY(-500);
+  harpoon.setCollideWorldBounds(true);
+  harpoon.body.onWorldBounds = true;
 
-  hook.setScale(1, 1); // Adjust size if needed
-  hook.setOrigin(0.5, 1); // Centra el origen
-
-
-  hook.anims.play('bullet_anim'); // Play shooting animation
-
-  const growSpeed = 1200;
-  const delta = scene.game.loop.delta; // Convert to seconds
-  const crecimiento = distanceToTop / delta; // Calculate the growth speed
-
-  console.log('crecimiento', crecimiento);
-
-  hook.scaleY += crecimiento / hook.height;
-  hook.y -= crecimiento / 2
-
-  scene.tweens.add({
-    targets: hook,
-    scaleY: distanceToTop / hook.height, // Escala vertical hasta el borde superior
-    duration: (distanceToTop / growSpeed) * 1000,
-    ease: 'Linear',
-    onComplete: () => {
-      hook.destroy(); // Destroy the hook after it reaches the top
+  function onWorldBounds(body) {
+    if (body.gameObject === harpoon && body.blocked.up) {
+      harpoon.destroy();
+      scene.physics.world.off('worldbounds', onWorldBounds);
     }
-  });
-
-  setTimeout(() => {
-    if (!gameOver) player.anims.play('turn');
-  }, 200);
-
-  // if (bullet) {
-  //   bullet.setActive(true);
-  //   bullet.setVisible(true);
-  //   bullet.setScale(2); // Adjust size if needed
-  //   bullet.setOrigin(0.5, -0.5); // Centra el origen
-  //   bullet.body.velocity.y = -300; // Adjust speed as needed
-  //   bullet.body.allowGravity = false; // Prevent gravity from affecting the bullet
-  //   bullet.anims.play('bullet_anim'); // Play bullet animation
-
-  //   setTimeout(() => {
-  //     if (!gameOver) player.anims.play('turn'); // Reset to idle animation after shooting
-  //   }, 200); // Hide the bullet after 1 second
-  // }
+  }
+  scene.physics.world.on('worldbounds', onWorldBounds);
 }
+
 
 function endGame() {
   gameOver = true;
@@ -197,7 +142,6 @@ function endGame() {
   this.physics.pause(); // Pause the physics world
   this.input.keyboard.removeAllListeners(); // Remove all keyboard listeners
   this.input.on('pointerdown', () => {
-    // Restart the game on pointer down
     location.reload(); // Reload the page to restart the game
   });
 }
