@@ -22,6 +22,7 @@ const config = {
 new Phaser.Game(config);
 
 let gameOver = false;
+let harpoonsGroup;
 
 function preload() {
   this.load.image('bg', 'assets/maya-bg.png');
@@ -32,8 +33,8 @@ function preload() {
   });
 
   this.load.spritesheet('harpoons', 'assets/harpoons.png', {
-    frameWidth: 30.2,
-    frameHeight: 37
+    frameWidth: 4,
+    frameHeight: 20
   });
 }
 
@@ -52,9 +53,10 @@ function create() {
 
   shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
+  harpoonsGroup = this.physics.add.group();
   this.anims.create({
     key: 'harpoons_anim',
-    frames: this.anims.generateFrameNumbers('harpoons', { start: 1, end: 8 }),
+    frames: this.anims.generateFrameNumbers('harpoons', { start: 2, end: 8 }),
     frameRate: 10,
     repeat: -1
   });
@@ -109,6 +111,11 @@ function update() {
     shootHarpooon(this, player);
   }
 
+  if (harpoonsGroup) {
+    harpoonsGroup.getChildren().forEach(harpoon => {
+      if (harpoon.update) harpoon.update();
+    });
+  }
 }
 
 function shootHarpooon(scene, player) {
@@ -116,21 +123,29 @@ function shootHarpooon(scene, player) {
 
   const harpoon = scene.physics.add.sprite(player.x, player.y, 'harpoons', 0).setOrigin(0.5, 1).setScale(3);
   harpoon.anims.play('harpoons_anim', true);
-
   harpoon.body.setAllowGravity(false);
-  harpoon.setVelocityY(-500);
-  harpoon.setCollideWorldBounds(true);
-  harpoon.body.onWorldBounds = true;
+  harpoon.setVelocityY(-200);
 
-  function onWorldBounds(body) {
-    if (body.gameObject === harpoon && body.blocked.up) {
+  harpoon.displayHeight = harpoon.height * harpoon.scaleY;
+
+  harpoonsGroup.add(harpoon);
+
+  const maxHeight = player.y;
+  const growSpeed = 20;
+
+
+  harpoon.update = function () {
+    if (harpoon.height < maxHeight) {
+      const grow = Math.min(growSpeed, maxHeight - harpoon.displayHeight);
+      harpoon.height += grow;
+      harpoon.y -= grow;
+
+    } else {
+      harpoon.height = maxHeight;
       harpoon.destroy();
-      scene.physics.world.off('worldbounds', onWorldBounds);
     }
-  }
-  scene.physics.world.on('worldbounds', onWorldBounds);
+  };
 }
-
 
 function endGame() {
   gameOver = true;
@@ -139,10 +154,10 @@ function endGame() {
   player.setVelocityY(0);
   player.anims.stop();
   player.anims.play('dead');
-  this.physics.pause(); // Pause the physics world
-  this.input.keyboard.removeAllListeners(); // Remove all keyboard listeners
+  this.physics.pause();
+  this.input.keyboard.removeAllListeners();
   this.input.on('pointerdown', () => {
-    location.reload(); // Reload the page to restart the game
+    location.reload();
   });
 }
 
