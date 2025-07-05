@@ -144,6 +144,10 @@ function shootHarpooon(scene, player) {
       harpoon.height = maxHeight;
       harpoon.destroy();
     }
+
+    if (this.y < 0 || this.y > config.height) {
+      harpoon.destroy();
+    }
   };
 }
 
